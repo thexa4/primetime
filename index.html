@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Prime Time</title>
+	<style>
+		html {
+			font-size: 36pt;
+			font-family: sans-serif;
+			background: #2b2722;
+			color: #efe8de;
+		}
+		h1 {
+			margin-top: 3em;
+			display: flex;
+			justify-content: center;
+		}
+		h2 {
+			display: flex;
+			justify-content: center;
+			font-size: smaller;
+			color: #e0dedb;
+		}
+	</style>
+<head>
+<body>
+	<noscript><em>This page calculates the next timestamp that is a prime number. Unfortunately that requires use of javascript.</em></noscript>
+	<h1 id="time">0 is not prime</h1>
+	<h2 id="nextprime">calculating...</h2>
+	
+<script>
+(function() {
+	var endOfTheWorld = 2147483647 // Epoch
+	var maxDivisor = Math.floor(Math.sqrt(endOfTheWorld))
+
+	var isprime = []
+	var timestamps = []
+
+	var maxTimestamps = 120
+
+	var bootstrapPrimes = [2, 3,  5,  7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
+		73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173,
+		179, 181, 191, 193, 197, 199, 211]
+	var primes = []
+
+	var candidates = []
+
+	function initializeCandidates() {
+		for (var i = 0; i <= maxDivisor; i++)
+			candidates[i] = true
+	}
+
+	function sieve(prime) {
+		console.log("Sieving: " + prime)
+		for(var i = 2 * prime; i <= maxDivisor; i += prime)
+			candidates[i] = false
+	}
+
+	function collectCandidates() {
+		for (var i = 2; i < candidates.length; i++) {
+			if (!candidates[i])
+				continue
+			primes.push(i)
+		}
+		candidates = undefined //free
+	}
+
+	function isPrime(i) {
+		for (var prime of primes)
+			if (i % prime == 0)
+				return false
+		return true
+	}
+
+	function predictTime() {
+		var timestamp = Math.floor(Date.now() / 1000)
+		var lastTime = timestamps[timestamps.length - 1] || (timestamp - 1)
+		var newTime = lastTime + 1
+
+		timestamps.push(newTime)
+		isprime.push(isPrime(newTime))
+	}
+	
+	var todoList = [initializeCandidates]
+	for (var prime of bootstrapPrimes) {
+		var i = prime;
+		todoList.push(sieve.bind(this, i))
+	}
+	todoList.push(collectCandidates)
+
+	function performWork() {
+		var item = todoList.shift()
+		if (!item && timestamps.length < maxTimestamps)
+			item = predictTime
+
+		if (item)
+			item()
+	}
+	
+	var timeElem = document.getElementById("time")
+	var nextprimeElem = document.getElementById("nextprime")
+	var lastTime = 0
+	function update() {
+		var timestamp = Math.floor(Date.now() / 1000)
+
+		performWork()
+
+		if (lastTime == timestamp)
+			return
+		lastTime = timestamp
+
+		while (timestamps.length > 0 && timestamps[0] < timestamp) {
+			timestamps.shift();
+			isprime.shift();
+		}
+
+		if (timestamps.length == 0) {
+			// no data yet
+			var notprime = timestamp % 2 == 0 || timestamp % 3 == 0 || timestamp % 5 == 0;
+			var caption = "&nbsp;<span style=\"width: 4.5em; text-align: right\">might be</span>&nbsp;prime"
+			if (notprime)
+				caption = "&nbsp;<span style=\"width: 4.5em; text-align: right\">is not</span>&nbsp;prime"
+			timeElem.innerHTML = timestamp + caption
+			nextprimeElem.innerHTML = "calculating..."
+			return
+		}
+
+		var caption = " is not prime"
+		if (isprime[0])
+			caption = " is&nbsp;<span style=\"opacity: 0\">not</span>&nbsp;prime"
+		timeElem.innerHTML = timestamp + caption
+
+		var nextprime = 0
+		for (var i = 1; i < timestamps.length; i++)
+		{
+			if (!isprime[i])
+				continue;
+			nextprime = timestamps[i]
+			break
+		}
+		
+		if (nextprime) {
+			var delta = nextprime - timestamp
+			nextprimeElem.innerHTML = delta + " seconds until next prime"
+		} else {
+			if (timestamps.length == maxTimestamps - 1 && maxTimestamps < 10000) {
+				maxTimestamps += 10
+				console.log("Increasing memory to " + maxTimestamps + " timestamps")
+			}
+
+			nextprimeElem.innerHTML = "calculating..."
+		}
+	}
+	
+	window.setInterval(update, 50)
+	update();
+})()
+</script>
+</body>
+</html>
